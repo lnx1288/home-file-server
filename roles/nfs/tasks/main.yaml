@@ -1,0 +1,46 @@
+---
+- name: Install the required packages
+  become: true
+  apt:
+    name: "{{ nfs_packages }}"
+    state: present
+    update_cache: yes
+
+- name: Create shared dirs if they don't exist
+  become: true
+  file: 
+    path: "{{ item.strip().split()[0] }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0755
+  with_items: "{{ nfs_exports }}"
+
+- name: Write the shares to /etc/exports.
+  become: true
+  template:
+    src: exports.j2
+    dest: /etc/exports
+    owner: root
+    group: root
+    mode: 0644
+  notify: reload nfs
+
+- name: Ensure NFS is running.
+  become: true
+  service: "name={{ nfs_server_daemon }} state=started enabled=yes"
+  when: nfs_exports|length
+
+- name: Enable ufw if not enabled
+  become: true
+  ufw:
+    state: enabled
+    policy: deny
+    logging: 'on'
+
+- name: Allow connections from internal subnet only
+  become: true
+  ufw:
+    rule: allow
+    port: 'nfs'
+    src: "{{ internal_subnet }}"
