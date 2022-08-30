@@ -3,8 +3,4 @@ nfs_packages:
   - nfs-common
   - nfs-kernel-server
 nfs_server_daemon: nfs-kernel-server
-nfs_exports: 
-  - "/data/myfiles *(rw,sync,no_subtree_check)"
 
-# network settings
-internal_subnet: 192.168.1.0/24

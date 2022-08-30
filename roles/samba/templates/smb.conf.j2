@@ -1,0 +1,139 @@
+# Samba configuration -- Managed by Ansible, please don't edit manually
+# vim: ft=samba
+#
+# {{ ansible_managed }}
+
+[global]
+  # Server information
+  workgroup = {{ smb_workgroup }}
+{% if smb_realm is defined %}
+  realm = {{ smb_realm }}
+{% endif %}
+  server string = {{ smb_server_string }}
+
+  # Logging
+{% if smb_log is defined %}
+  log file = {{ smb_log }}
+  max log size = {{ smb_log_size }}
+  log level = {{ smb_log_level }}
+{% else %}
+  logging = syslog
+{% endif %}
+
+  # Authentication
+  security = {{ smb_security }}
+  passdb backend = {{ smb_passdb_backend }}
+  map to guest = {{ smb_map_to_guest }}
+{% if smb_guest_account  is defined %}
+  guest account = {{ smb_guest_account }}
+{% endif %}
+{% if smb_username_map is defined %}
+  username map = {{ smb_username_map_file }}
+{% endif %}
+
+# Minimum protocol version offered by the server
+{% if smb_server_min_protocol is defined %}
+  server min protocol = {{ smb_server_min_protocol }}
+{% endif %}
+
+# Maximum protocol version offered by the server
+{% if smb_server_max_protocol is defined %}
+  server max protocol = {{ smb_server_max_protocol }}
+{% endif %}
+
+{% if smb_interfaces|length > 0 %}
+  interfaces = {{ smb_interfaces }}
+{% endif %}
+
+# Name resolution: make sure \\NETBIOS_NAME\ works
+wins support = {{ smb_wins_support | ternary('yes', 'no') }}
+local master = {{ smb_local_master | ternary('yes', 'no') }}
+domain master = {{ smb_domain_master | ternary('yes', 'no') }}
+preferred master = {{ smb_preferred_master | ternary('yes', 'no') }}
+
+{% if not smb_load_printers %}
+  # Don't load printers
+  load printers = no
+  printing = bsd
+  printcap name = /dev/null
+  disable spoolss = yes
+{% else %}
+  load printers = yes
+  printing = {{ smb_printer_type }}
+  printcap name = {{ smb_printer_type }}
+  {% if smb_printer_type == 'cups' %}
+    cups server = {{ smb_cups_server }}
+  {% endif %}
+{% endif %}
+
+{% if smb_mitigate_cve_2017_7494 and smb_version.stdout >= "3.5.0" and smb_version.stdout < "4.6.4" %}
+  # Fix for CVE-2017-7494 in Samba versions from 3.5.0 and before 4.6.4
+  # https://access.redhat.com/security/cve/cve-2017-7494
+  nt pipe support = no
+{% endif %}
+
+{% if smb_global_include is defined %}
+  include = {{ smb_configuration_dir }}/{{ smb_global_include }}
+{% endif %}
+
+{% if smb_load_homes %}
+## Make home directories accessible
+[homes]
+  comment = Home Directories
+  browseable = no
+  writable = yes
+{% endif %}
+
+{% if smb_homes_include is defined %}
+  include = {{ smb_configuration_dir }}/{{ smb_homes_include }}
+{% endif %}
+
+## Shared directories
+{% if smb_shares|length > 0 %}
+{% for share in smb_shares %}
+[{{ share.name }}]
+{% if share.comment is defined %}
+  comment = {{ share.comment }}
+{% endif %}
+{% if share.vfs_objects is defined and share.vfs_objects|length > 0 %}
+  vfs objects = {% for obj in share.vfs_objects %}{{obj.name}} {% endfor %}
+
+{% for obj in share.vfs_objects %}
+{% if obj.options is defined %}
+{% if obj.options|length > 0 %}
+{% for opt in obj.options %}
+  {{ obj.name }}:{{ opt.name }} = {{ opt.value }}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% endfor %}{% endif %}
+  path = {{ share.path|default([smb_shares_root,share.name]|join('/')) }}
+  public = {{ share.public|default('no') }}
+{% if share.valid_users is defined %}
+  valid users= {{ share.valid_users }}
+{% endif %}
+{% if share.write_list is defined %}
+  write list = {{ share.write_list }}
+{% endif %}
+{% if share.group is defined %}
+  force group = {{ share.group }}
+{% endif %}
+{% if share.guest_ok is defined %}
+  guest ok = {{ share.guest_ok }}
+{% endif %}
+{% if share.browseable is defined %}
+  browseable = {{ share.browseable }}
+{% endif %}
+{% if share.writable is defined %}
+  writable = {{ share.writable }}
+{% endif %}
+  create mode = {{ share.create_mode|default('0664') }}
+  force create mode = {{ share.force_create_mode|default('0664') }}
+  directory mode = {{ share.directory_mode|default('0775') }}
+  force directory mode = {{ share.force_directory_mode|default('0775') }}
+{% if share.include_file is defined %}
+  include = {{ smb_configuration_dir }}/{{ share.include_file }}
+{% endif %}
+
+{% endfor %}
+{% endif%}

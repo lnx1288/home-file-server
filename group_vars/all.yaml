@@ -1,0 +1,32 @@
+# general vars
+internal_subnet: 192.168.1.0/24
+
+# NFS vars
+nfs_exports: 
+  - "/data/exports *(rw,sync,no_subtree_check)"
+
+# Samba vars
+# users
+user1 : user1
+user2: user2
+smb_users:
+  - {name: "{{ user1 }}", password: Add-pass-here}
+  - {name: "{{ user2 }}", password: Add-pass-here}
+# shares
+smb_shares_root: '/data/myfiles'
+smb_shares:
+  - name: "{{ user1 }}-files"
+    guest_ok: no
+    write_list: "{{ user1 }}"
+    group: "{{ user1 }}"
+    read_only: no
+    owner: "{{ user1 }}"
+    valid_users: "{{ user1 }}"
+    directory_mode: '0774'
+  - name: "{{ user2 }}-files"
+    guest_ok: no
+    write_list: "{{ user2 }}"
+    group: "{{ user2 }}"
+    read_only: no
+    owner: "{{ user2 }}"
+    directory_mode: '0774'

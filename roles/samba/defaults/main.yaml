@@ -1,0 +1,41 @@
+---
+smb_packages:
+  - samba 
+  - samba-common
+
+smb_services:
+  - smbd
+  - nmbd
+
+# general config
+smb_configuration_dir: /etc/samba
+smb_configuration: "{{ smb_configuration_dir }}/smb.conf"
+smb_interfaces: []
+smb_load_printers: false
+smb_load_homes: false
+smb_create_varwww_symlinks: false
+
+# logging
+smb_log: /var/log/samba.log
+smb_log_size: 60000
+smb_log_level: '3 passdb:5 auth:10 winbind:2'
+
+# auth vars
+smb_security: 'user'
+smb_passdb_backend: 'tdbsam'
+smb_map_to_guest: 'never'
+
+# hostname resolution/dns/wins vars
+smb_wins_support: 'yes'
+smb_local_master: 'yes'
+smb_domain_master: 'yes'
+smb_preferred_master: 'yes'
+smb_workgroup: 'WORKGROUP'
+smb_server_string: 'Fileserver %m'
+
+# cve mitigation
+smb_mitigate_cve_2017_7494: true
+
+
+
+

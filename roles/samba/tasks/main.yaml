@@ -1,0 +1,103 @@
+---
+- name: Install packages
+  become: true
+  apt:
+    name: "{{ smb_packages }}"
+    state: present
+  tags: samba
+
+- name: Register Samba version
+  shell: >
+    set -o nounset -o pipefail -o errexit &&
+    smbd --version | sed 's/Version //' | sed 's/-Ubuntu//'
+  args:
+    executable: /bin/bash
+  register: smb_version
+  changed_when: false
+  tags: samba
+
+- name: Create shares root directory
+  become: true
+  file:
+    state: directory
+    path: "{{ smb_shares_root }}"
+    owner: root
+    group: root
+    mode: '0755'
+  when: smb_shares|length > 0
+  tags: samba
+
+- name: Create share directories
+  become: true
+  with_items: "{{ smb_shares }}"
+  file:
+    state: directory
+    path: "{{ item.path|default([smb_shares_root,item.name]|join('/')) }}"
+    owner: "{{ item.owner|default('root') }}"
+    group: "{{ item.group|default('users') }}"
+    mode: "{{ item.directory_mode|default('0775') }}"
+  tags: samba
+
+- name: Set configuration from template
+  become: true
+  template:
+    dest: "{{ smb_configuration }}"
+    src: smb.conf.j2
+    validate: 'testparm -s %s'
+  notify:
+    - Restart Samba services
+  tags: samba
+
+- name: Install share specific include files
+  template:
+    src: "{{ item.include_file }}"
+    dest: "{{ smb_configuration_dir }}"
+    validate: 'testparm -s %s'
+  when: item.include_file is defined
+  notify:
+    - Restart Samba services
+  with_items: "{{ smb_shares }}"
+  tags: samba
+
+- name: Start Samba service(s)
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  with_items: "{{ smb_services }}"
+  tags: samba
+
+- name: Create Samba users if they don't exist yet
+  become: true
+  shell: >
+    set -o nounset -o pipefail -o errexit &&
+    (pdbedit --user={{ item.name }} 2>&1 > /dev/null) \
+    || (echo {{ item.password }}; echo {{ item.password }}) \
+    | smbpasswd -s -a {{ item.name }}
+  args:
+    executable: /bin/bash
+  loop: "{{ smb_users }}"
+  no_log: true
+  register: create_user_output
+  changed_when: "'Added user' in create_user_output.stdout"
+  tags: samba
+
+- name: Enable ufw if not enabled
+  become: true
+  ufw:
+    state: enabled
+    policy: deny
+    logging: 'on'
+
+- name: Allow Samba UDP ports from internal subnet only
+  become: true
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    src: "{{ internal_subnet }}"
+  loop: 
+    - {port: 137, proto: udp}
+    - {port: 138, proto: udp}
+    - {port: 139, proto: tcp}
+    - {port: 445, proto: tcp}

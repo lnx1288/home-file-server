@@ -1,6 +1,6 @@
-- name: Install NFS server and add shares
+- name: Install file server and add shares
   hosts: all
   gather_facts: false
   serial: 1
   roles:
-    - nfs
+    - role: samba
