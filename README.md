@@ -12,7 +12,9 @@ You can either select to install NFS or Samba.
 
 Make sure you configure the `group_vars/all.yaml` files to match your needs
 (e.g., update `internal_subnet` to a proper value, add/delete users and
-user details as needed)
+user details as needed). Depending on what server type you want (currently
+available types are `nfs`and `samba`) you would need to adjust the active 
+role in `main.yaml` as it defaults to `samba`.
 
 Execute:
 
